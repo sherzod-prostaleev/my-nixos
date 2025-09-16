@@ -25,6 +25,7 @@
   ];
 
   # Yuqori ruxsatli yuklash ekrani uchun AMD GPU drayverini ertaroq yuklash (Early KMS)
+  boot.initrd.kernelModules = [ "amdgpu" ];
   boot.initrd.availableKernelModules = [ "amdgpu" ];
 
   # Unumdorlikni oshirish uchun tmpfs'da vaqtinchalik fayllar papkasini yaratish
@@ -85,11 +86,15 @@
     extraPackages = with pkgs; [
       rocmPackages.clr.icd
       mesa
+      amdvlk
     ];
     extraPackages32 = with pkgs.pkgsi686Linux; [
       mesa
+      driversi686Linux.amdvlk
     ];
   };
+
+  hardware.opengl.enable = true;
 
   # Uskunalar uchun proshivkalarni (firmware) yoqish
   hardware.enableRedistributableFirmware = true;
@@ -200,6 +205,8 @@
     wget curl git htop btop neofetch
     unzip unrar p7zip tree killall
     pciutils usbutils lshw
+    clinfo
+    lact 
 
     # --- TERMINAL ---
     kitty
@@ -360,6 +367,17 @@
   systemd.user.extraConfig = ''
     DefaultLimitNOFILE=1048576
   '';
+
+  # Most software has the HIP libraries hard-coded. You can work around it on NixOS by using:
+  systemd.tmpfiles.rules = [
+    "L+    /opt/rocm/hip   -    -    -     -    ${pkgs.rocmPackages.clr}"
+  ];
+
+  # This application allows you to overclock, undervolt, set fans curves of AMD GPUs on a Linux system. 
+  systemd.packages = with pkgs; [ lact ];
+  systemd.services.lactd.wantedBy = ["multi-user.target"];
+  services.lact.enable = true;
+
 
   # Yadro parametrlarini optimallashtirish
   boot.kernel.sysctl = {

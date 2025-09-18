@@ -1,5 +1,3 @@
-# Version: 2025-09-15 (Gaming Optimized & Final Fix v3)
-# Sherzod uchun Bluetooth olib tashlangan va Wayland uchun tozalangan versiya
 { config, pkgs, lib, ... }:
 
 {
@@ -25,6 +23,7 @@
   ];
 
   # Yuqori ruxsatli yuklash ekrani uchun AMD GPU drayverini ertaroq yuklash (Early KMS)
+  boot.initrd.kernelModules = [ "amdgpu" ];
   boot.initrd.availableKernelModules = [ "amdgpu" ];
 
   # Unumdorlikni oshirish uchun tmpfs'da vaqtinchalik fayllar papkasini yaratish
@@ -58,10 +57,6 @@
   services.xserver.displayManager.gdm.wayland = true; # Wayland'ni yoqish
   services.xserver.desktopManager.gnome.enable = true;
 
-  # O'ZGARTIRISH: Bu sozlama faqat X11 uchun, Wayland'da kerak emas.
-  # services.xserver.deviceSection = ''
-  #   Option "VariableRefresh" "true"
-  # '';
 
   # GNOME bilan bog'liq xizmatlar
   services.gnome = {
@@ -85,19 +80,18 @@
     extraPackages = with pkgs; [
       rocmPackages.clr.icd
       mesa
+      amdvlk
     ];
     extraPackages32 = with pkgs.pkgsi686Linux; [
       mesa
+      driversi686Linux.amdvlk
     ];
   };
+
 
   # Uskunalar uchun proshivkalarni (firmware) yoqish
   hardware.enableRedistributableFirmware = true;
 
-  # O'ZGARTIRISH: Bluetooth mavjud bo'lmagani uchun o'chirildi
-  # hardware.bluetooth.enable = true;
-  # hardware.bluetooth.powerOnBoot = true;
-  # services.blueman.enable = true;
 
   # Skaner
   hardware.sane.enable = true;
@@ -128,23 +122,11 @@
     description = "sher";
     extraGroups = [
       "networkmanager" "wheel" "video" "audio" "input"
-      "gamemode" "docker" "libvirtd" "kvm" "corectrl"
+      "gamemode" "docker" "libvirtd" "kvm" 
       "scanner" "lp"
     ];
   };
 
-  # YAKUNIY TUZATISH: CoreCtrl uchun Polkit qoidasini to'g'ri, deklarativ usulda qo'shish
-  security.polkit.enable = true;
-  environment.etc."polkit-1/rules.d/50-corectrl.rules".text = ''
-    polkit.addRule(function(action, subject) {
-      if ((action.id == "org.corectrl.helper.gpubusy" ||
-           action.id == "org.corectrl.helper.gpupower" ||
-           action.id == "org.corectrl.helper.fanspeed") &&
-           subject.isInGroup("wheel")) {
-        return polkit.Result.YES;
-      }
-    });
-  '';
 
   # Tizimga kirganda GNOME Keyring'ni avtomatik ochish
   security.pam.services.gdm.enableGnomeKeyring = true;
@@ -200,6 +182,8 @@
     wget curl git htop btop neofetch
     unzip unrar p7zip tree killall
     pciutils usbutils lshw
+    clinfo
+    lact 
 
     # --- TERMINAL ---
     kitty
@@ -361,6 +345,17 @@
     DefaultLimitNOFILE=1048576
   '';
 
+  # Most software has the HIP libraries hard-coded. You can work around it on NixOS by using:
+  systemd.tmpfiles.rules = [
+    "L+    /opt/rocm/hip   -    -    -     -    ${pkgs.rocmPackages.clr}"
+  ];
+
+  # This application allows you to overclock, undervolt, set fans curves of AMD GPUs on a Linux system. 
+  systemd.packages = with pkgs; [ lact ];
+  systemd.services.lactd.wantedBy = ["multi-user.target"];
+  #services.lact.enable = true;
+
+
   # Yadro parametrlarini optimallashtirish
   boot.kernel.sysctl = {
     "vm.swappiness" = 10;
@@ -386,7 +381,6 @@
   programs.mtr.enable = true;
   programs.gnupg.agent.enable = true;
   programs.gnupg.agent.enableSSHSupport = true;
-  programs.corectrl.enable = true;
   programs.fish.enable = true; # Fish shell
   programs.zsh = {
     enable = true;
@@ -419,17 +413,9 @@
   # GNOME Virtual File System (GVFS)
   services.gvfs.enable = true;
 
-  # Telefon integratsiyasi uchun GSConnect
-  programs.kdeconnect = {
-    enable = true;
-    package = pkgs.gnomeExtensions.gsconnect;
-  };
-
   # Firewall (Xavfsizlik devori)
   networking.firewall.enable = true;
 
   # Tizim versiyasi
   system.stateVersion = "25.05";
 }
-
-

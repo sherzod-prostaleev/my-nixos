@@ -243,6 +243,8 @@
     stress-ng
     vkmark
     glmark2
+    git-credential-manager
+
 
     # --- TERMINAL ---
     tmux
